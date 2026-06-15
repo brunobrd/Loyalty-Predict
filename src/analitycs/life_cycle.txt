@@ -1,0 +1,13 @@
+curiosa -> idade < 7
+
+fiel -> recência < 7 e recência anterior < 15
+
+turista -> 7 <= recência <= 14
+
+desencatado -> 14 < recência <= 28
+
+zumbi -> rencência > 28
+
+reconquistado -> recência < 7 e 14 <= recência anterior <= 28
+
+reborn  -> recência < 7 e recência anterior > 28 
