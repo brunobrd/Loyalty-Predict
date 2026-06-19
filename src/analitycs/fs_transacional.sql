@@ -1,7 +1,8 @@
 WITH tb_transacao AS (
     SELECT
         *,
-        SUBSTR(DtCriacao,0,11) AS dtDia
+        SUBSTR(DtCriacao,0,11) AS dtDia,
+        CAST(SUBSTR(DtCriacao,12,2) AS INT) AS dtHora
 
     FROM
         transacoes
@@ -13,6 +14,8 @@ WITH tb_transacao AS (
 tb_agg_transacao AS (
     SELECT 
         idCliente,
+        MAX(JULIANDAY(DATE('2025-10-01', '-1 day')) - JULIANDAY(DtCriacao)) AS idadeDias,
+
         COUNT(DISTINCT dtDia) AS qtdeAtivacaoVida,
         COUNT(DISTINCT CASE WHEN dtDia >= DATE('2025-10-01', '-7 day') THEN dtDia END) AS qtdeAtivacaoVidaD7,
         COUNT(DISTINCT CASE WHEN dtDia >= DATE('2025-10-01', '-14 day') THEN dtDia END) AS qtdeAtivacaoVidaD14,
@@ -41,7 +44,16 @@ tb_agg_transacao AS (
         SUM(CASE WHEN dtDia >= DATE(2025-10-01, '-7 day') AND qtdePontos  < 0 THEN qtdePontos ELSE 0 END) AS qtdePontosNegVidaD7,
         SUM(CASE WHEN dtDia >= DATE(2025-10-01, '-14 day') AND qtdePontos < 0 THEN qtdePontos ELSE 0 END) AS qtdePontosNegVidaD14,
         SUM(CASE WHEN dtDia >= DATE(2025-10-01, '-28 day') AND qtdePontos < 0 THEN qtdePontos ELSE 0 END) AS qtdePontosNegVidaD28,
-        SUM(CASE WHEN dtDia >= DATE(2025-10-01, '-56 day') AND qtdePontos < 0 THEN qtdePontos ELSE 0 END) AS qtdePontosNegVidaD56
+        SUM(CASE WHEN dtDia >= DATE(2025-10-01, '-56 day') AND qtdePontos < 0 THEN qtdePontos ELSE 0 END) AS qtdePontosNegVidaD56,
+
+        COUNT(CASE WHEN dtHora BETWEEN 10 AND 14 THEN IdTransacao END) AS qtdeTransacaoManha,
+        COUNT(CASE WHEN dtHora BETWEEN 15 AND 21 THEN IdTransacao END) AS qtdeTransacaoTarde,
+        COUNT(CASE WHEN dtHora > 21 OR dtHora < 7 THEN IdTransacao END) AS qtdeTransacaoNoite,
+
+        1. * COUNT(CASE WHEN dtHora BETWEEN 10 AND 14 THEN IdTransacao END) / COUNT(IdTransacao)AS pctTransacaoManha,
+        1. * COUNT(CASE WHEN dtHora BETWEEN 15 AND 21 THEN IdTransacao END) / COUNT(IdTransacao)AS pctTransacaoTarde,
+        1. * COUNT(CASE WHEN dtHora > 21 OR dtHora < 7 THEN IdTransacao END)/ COUNT(IdTransacao) AS pctTransacaoNoite
+        
         
     FROM
         tb_transacao
@@ -108,22 +120,74 @@ tb_intervalo_dias AS (
     GROUP BY
 
         idCliente
+),
+
+tb_share_produto AS (
+    SELECT
+        idCliente,
+        1. * COUNT(CASE WHEN DescNomeProduto = 'ChatMessage' THEN t1.IdTransacao END) / COUNT(t1.IdTransacao) AS qtdeChatMessage,
+        1. * COUNT(CASE WHEN DescNomeProduto = 'Airflow Lover' THEN t1.IdTransacao END) / COUNT(t1.IdTransacao) AS qtdeAirflowLover,
+        1. * COUNT(CASE WHEN DescNomeProduto = 'R Lover' THEN t1.IdTransacao END) / COUNT(t1.IdTransacao) AS qtdeRLover,
+        1. * COUNT(CASE WHEN DescNomeProduto = 'Resgatar Ponei' THEN t1.IdTransacao END) / COUNT(t1.IdTransacao) AS qtdeResgatarPonei,
+        1. * COUNT(CASE WHEN DescNomeProduto = 'Lista de presença' THEN t1.IdTransacao END) / COUNT(t1.IdTransacao) AS qtdeListapresenca,
+        1. * COUNT(CASE WHEN DescNomeProduto = 'Presença Streak' THEN t1.IdTransacao END) / COUNT(t1.IdTransacao) AS qtdePresencaStreak,
+        1. * COUNT(CASE WHEN DescNomeProduto = 'Troca de Pontos StreamElements' THEN t1.IdTransacao END) / COUNT(t1.IdTransacao) AS qtdeTrocaPontosStreamElements,
+        1. * COUNT(CASE WHEN DescNomeProduto = 'Reembolso: Troca de Pontos StreamElements' THEN t1.IdTransacao END) / COUNT(t1.IdTransacao) AS qtdeReembolsoStreamElements,
+        1. * COUNT(CASE WHEN DescCategoriaProduto ='rpg' THEN t1.IdTransacao END) / COUNT(t1.IdTransacao) AS qtdeRPG,
+        1. * COUNT(CASE WHEN DescCategoriaProduto ='churn_model' THEN t1.IdTransacao END) / COUNT(t1.IdTransacao) AS qtdeChurnModel
+    FROM 
+        tb_transacao AS t1
+    LEFT JOIN 
+        transacao_produto AS t2
+    ON 
+        t1.IdTransacao = t2.IdTransacao
+    LEFT JOIN 
+        produtos AS t3
+    ON 
+        t2.IdProduto = t3.IdProduto
+    GROUP BY
+        idCliente
+),
+
+tb_join AS (
+    SELECT
+        t1.*,
+        t2.qtdeHorasVida,
+        t2.qtdeHorasD7,
+        t2.qtdeHorasD14,
+        t2.qtdeHorasD28,
+        t2.qtdeHorasD56,
+        t3.avgIntervaloDiasVida,
+        t3.avgIntervaloDias28,
+        t4.qtdeChatMessage,
+        t4.qtdeAirflowLover,
+        t4.qtdeRLover,
+        t4.qtdeResgatarPonei,
+        t4.qtdeListapresenca,
+        t4.qtdePresencaStreak,
+        t4.qtdeTrocaPontosStreamElements,
+        t4.qtdeReembolsoStreamElements,
+        t4.qtdeRPG,
+        t4.qtdeChurnModel
+
+    FROM
+        tb_agg_calc AS t1
+
+    LEFT JOIN 
+        tb_horas_cliente AS t2
+    ON 
+        t1.idCliente = t2.idCliente
+    LEFT JOIN 
+        tb_intervalo_dias AS t3
+    ON 
+        t1.idCliente = t3.idCliente
+    LEFT JOIN
+        tb_share_produto AS t4
+    ON
+        t1.idCliente = t4.idCliente
 )
 
-SELECT
-    t1.*,
-    t2.qtdeHorasD7,
-    t2.qtdeHorasD14,
-    t2.qtdeHorasD28,
-    t2.qtdeHorasD56,
-    t3.avgIntervaloDiasVida,
-    t3.avgIntervaloDias28
-
-FROM
-    tb_agg_calc AS t1
-
-LEFT JOIN tb_horas_cliente AS t2
-ON t1.idCliente = t2.idCliente
-
-LEFT JOIN tb_intervalo_dias AS t3
-ON t1.idCliente = t3.idCliente
+SELECT 
+    DATE('2025-10-01', '-1 day') AS dtRef,
+    *
+FROM tb_join
