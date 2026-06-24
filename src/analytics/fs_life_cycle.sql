@@ -7,7 +7,7 @@ WITH tb_life_cycle_atual AS (
     FROM
         life_cycle
     WHERE
-        dtRef = DATE('2025-09-01', '-1 day')
+        dtRef = DATE('{date}', '-1 day')
 ),
 
 tb_life_cycleD28 AS (
@@ -17,13 +17,12 @@ tb_life_cycleD28 AS (
     FROM 
         life_cycle
     WHERE
-        dtRef = DATE('2025-09-01', '-29 day')
+        dtRef = DATE('{date}', '-29 day')
 ),
 
 tb_share_ciclo AS (
 
     SELECT
-
         IdCliente,
         1. * SUM(CASE WHEN descLifeCycle = '01-CURIOSO' THEN 1 ELSE 0 END) / COUNT(*) AS 'pctCurioso',
         1. * SUM(CASE WHEN descLifeCycle = '02-FIEL' THEN 1 ELSE 0 END) / COUNT(*) AS 'pctFiel',
@@ -36,7 +35,7 @@ tb_share_ciclo AS (
     FROM
         life_cycle
     WHERE
-        dtRef < '2025-09-01'
+        dtRef < '{date}'
     GROUP BY
         IdCliente
 ),
@@ -63,7 +62,7 @@ tb_join AS (
         t3.pctReconquistado,
         t3.pctReborn,
         t4.avgFreqGrupo,
-        1. * t1.qtdeFrequencia / t4.avgFreqGrupo AS ratio
+        1. * t1.qtdeFrequencia / t4.avgFreqGrupo AS ratioFreqGrupo
     FROM
         tb_life_cycle_atual AS t1
     LEFT JOIN 
@@ -80,5 +79,7 @@ tb_join AS (
         t1.descLifeCycleAtual = t4.descLifeCycleAtual
 )
 
-SELECT *
+SELECT
+    DATE('{date}', '-1 day') AS dtRef,
+    *
 FROM tb_join
