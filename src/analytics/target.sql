@@ -1,3 +1,6 @@
+DROP TABLE IF EXISTS abt_fiel;
+CREATE TABLE IF NOT EXISTS abt_fiel AS
+
 WITH tb_join AS (
     SELECT
         t1.dtRef,
@@ -151,5 +154,6 @@ ON
 LEFT JOIN fs_education AS t4
 ON
     t1.idCliente = t4.idCliente AND t1.dtRef = t4.dtRef
-
-LIMIT 100
+WHERE
+    t3.dtRef IS NOT NULL
+;
